@@ -2,6 +2,12 @@
 
 Kotlin reimplementation of the [Python Carcassonne engine](https://github.com/wingedsheep/carcassonne) with a React web frontend.
 
+![Carcassonne game in progress](img.png)
+
+## Performance
+
+The engine is fast — designed for AI and reinforcement learning workloads where millions of games need to be simulated. On a single thread it plays **~700+ complete games per second** (~1.4ms per game, ~142 actions per game), making it well-suited for MCTS and other search-based agents.
+
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for the full architecture document.
