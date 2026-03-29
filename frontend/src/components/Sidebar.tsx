@@ -17,10 +17,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ game, selectedRotation, onRotationChange, onAction, onStep, autoPlay, onToggleAutoPlay, onConcede, selectedMeepleType, onMeepleTypeChange, gameConfig }: SidebarProps) {
-  const { phase, currentPlayer, currentTileRotations, validActions, playerMeeples, aiPlayerIndices } = game
+  const { phase, currentPlayer, currentTileRotations, validActions, playerMeeples, aiPlayerIndices, aiDifficulties } = game
   const passAction = validActions.find(a => a.type === 'pass')
   const previewTile = currentTileRotations?.[selectedRotation]
   const isCurrentAI = aiPlayerIndices?.includes(currentPlayer)
+  const currentAIDiff = aiDifficulties?.[currentPlayer]
 
   return (
     <div style={{
@@ -45,7 +46,7 @@ export function Sidebar({ game, selectedRotation, onRotationChange, onAction, on
             background: PLAYER_COLORS[currentPlayer],
           }} />
           <span style={{ fontSize: 14, fontWeight: 500 }}>
-            {isCurrentAI ? `AI (Player ${currentPlayer + 1})` : `Player ${currentPlayer + 1}`}
+            {isCurrentAI ? `AI ${currentAIDiff ?? ''} (Player ${currentPlayer + 1})` : `Player ${currentPlayer + 1}`}
           </span>
         </div>
         {playerMeeples[currentPlayer] && (

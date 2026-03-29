@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class GameSession(
     val game: Game,
     val aiPlayers: Map<Int, TreeSearchAI> = emptyMap(),
+    val aiDepths: Map<Int, Int> = emptyMap(),
     val history: MutableList<GameState> = mutableListOf()
 ) {
     /** Coordinate of the most recently placed tile (persists across phases). */
@@ -64,9 +65,9 @@ object GameSessionManager {
     private val sessions = ConcurrentHashMap<String, GameSession>()
     private val counter = AtomicInteger(0)
 
-    fun create(game: Game, aiPlayers: Map<Int, TreeSearchAI> = emptyMap()): String {
+    fun create(game: Game, aiPlayers: Map<Int, TreeSearchAI> = emptyMap(), aiDepths: Map<Int, Int> = emptyMap()): String {
         val id = "game-${counter.incrementAndGet()}"
-        sessions[id] = GameSession(game, aiPlayers)
+        sessions[id] = GameSession(game, aiPlayers, aiDepths)
         return id
     }
 

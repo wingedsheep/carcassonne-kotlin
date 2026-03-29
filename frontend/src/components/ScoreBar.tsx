@@ -6,8 +6,12 @@ interface ScoreBarProps {
 }
 
 export function ScoreBar({ game }: ScoreBarProps) {
-  const { scores, currentPlayer, phase, playerMeeples, aiPlayerIndices } = game
+  const { scores, currentPlayer, phase, playerMeeples, aiPlayerIndices, aiDifficulties } = game
   const isAI = (i: number) => aiPlayerIndices?.includes(i)
+  const aiLabel = (i: number) => {
+    const diff = aiDifficulties?.[i]
+    return diff ? `AI ${diff}` : 'AI'
+  }
   return (
     <div style={{
       display: 'flex',
@@ -41,7 +45,7 @@ export function ScoreBar({ game }: ScoreBarProps) {
               gap: 6,
             }}
           >
-            <span>{isAI(i) ? 'AI' : `P${i + 1}`}: {score}</span>
+            <span>{isAI(i) ? aiLabel(i) : `P${i + 1}`}: {score}</span>
             {playerMeeples[i] && (
               <span style={{ fontSize: 11, opacity: 0.8 }}>
                 ({playerMeeples[i].normal}m)

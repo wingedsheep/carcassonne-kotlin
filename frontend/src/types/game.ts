@@ -71,6 +71,7 @@ export interface GameResponse {
   meeplesOnBoard: MeepleOnBoard[]
   playerMeeples: MeeplePoolInfo[]
   aiPlayerIndices: number[]
+  aiDifficulties: Record<number, string>
   isAllAI: boolean
   lastPlacedRow: number | null
   lastPlacedCol: number | null

@@ -36,6 +36,7 @@ data class GameResponse(
     val meeplesOnBoard: List<MeepleOnBoardResponse>,
     val playerMeeples: List<MeeplePoolResponse>,
     val aiPlayerIndices: List<Int> = emptyList(),
+    val aiDifficulties: Map<Int, String> = emptyMap(),
     val isAllAI: Boolean = false,
     val lastPlacedRow: Int? = null,
     val lastPlacedCol: Int? = null,
@@ -123,7 +124,10 @@ fun Route.gameRoutes() {
                 )
             }
 
-            val id = GameSessionManager.create(game, aiPlayers)
+            val aiDepths = request.aiPlayers.associateWith { playerIdx ->
+                request.aiDepths[playerIdx] ?: request.aiDepth
+            }
+            val id = GameSessionManager.create(game, aiPlayers, aiDepths)
             val session = GameSessionManager.get(id)!!
             session.runAiTurns()
             call.respond(buildGameResponse(id, session))
@@ -199,6 +203,13 @@ private fun buildGameResponse(id: String, session: GameSession): GameResponse {
             )
         },
         aiPlayerIndices = session.aiPlayers.keys.toList(),
+        aiDifficulties = session.aiDepths.mapValues { (_, depth) ->
+            when (depth) {
+                1 -> "Easy"
+                2 -> "Normal"
+                else -> "Hard"
+            }
+        },
         isAllAI = session.isAllAI,
         lastPlacedRow = (state.lastPlacedCoordinate ?: session.lastPlacedCoordinate)?.row,
         lastPlacedCol = (state.lastPlacedCoordinate ?: session.lastPlacedCoordinate)?.col,
