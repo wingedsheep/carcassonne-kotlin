@@ -18,8 +18,11 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
   const [dragging, setDragging] = useState(false)
   const dragStart = useRef<{ x: number; y: number } | null>(null)
   const [centered, setCentered] = useState(false)
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null)
+  const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null)
 
-  const { board, phase, validActions, currentTileRotations, meeplesOnBoard } = game
+  const { board, phase, validActions, currentTileRotations, meeplesOnBoard, currentPlayer, aiPlayerIndices, lastPlacedRow, lastPlacedCol } = game
+  const isHumanTurn = !aiPlayerIndices.includes(currentPlayer)
 
   // Center on initial render
   useEffect(() => {
@@ -73,6 +76,9 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
     ? validActions.filter(a => a.type === 'place_tile' && a.rotation === selectedRotation)
     : []
 
+  // Build a lookup set for valid placement cells
+  const validCellKeys = new Set(tilePlacements.map(a => `${a.row},${a.col}`))
+
   const meeplePlacements = phase === 'MEEPLE_PLACEMENT'
     ? validActions.filter(a => a.type === 'place_meeple' && !a.remove)
     : []
@@ -82,6 +88,61 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
 
   const previewTile = currentTileRotations?.[selectedRotation]
 
+  // Store values in refs so the mousemove handler doesn't need to be recreated
+  const phaseRef = useRef(phase)
+  phaseRef.current = phase
+  const previewTileRef = useRef(previewTile)
+  previewTileRef.current = previewTile
+  const offsetRef = useRef(offset)
+  offsetRef.current = offset
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+  const validCellKeysRef = useRef(validCellKeys)
+  validCellKeysRef.current = validCellKeys
+  const isHumanTurnRef = useRef(isHumanTurn)
+  isHumanTurnRef.current = isHumanTurn
+
+  // Track mouse for cursor tile preview
+  const handleMouseMoveBoard = useCallback((e: React.MouseEvent) => {
+    handleMouseMove(e)
+    if (!isHumanTurnRef.current || phaseRef.current !== 'TILE_PLACEMENT' || !previewTileRef.current) {
+      setMousePos(null)
+      setHoveredCell(null)
+      return
+    }
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const ox = offsetRef.current.x
+    const oy = offsetRef.current.y
+    const z = zoomRef.current
+    const boardX = (e.clientX - rect.left - ox) / z
+    const boardY = (e.clientY - rect.top - oy) / z
+    const col = Math.floor(boardX / TILE_SIZE)
+    const row = Math.floor(boardY / TILE_SIZE)
+    const key = `${row},${col}`
+    if (validCellKeysRef.current.has(key)) {
+      setHoveredCell({ row, col })
+      setMousePos(null)
+    } else {
+      setHoveredCell(null)
+      setMousePos({ x: boardX, y: boardY })
+    }
+  }, [handleMouseMove])
+
+  const handleMouseLeaveBoard = useCallback(() => {
+    handleMouseUp()
+    setMousePos(null)
+    setHoveredCell(null)
+  }, [handleMouseUp])
+
+  // Determine cursor style
+  const showTileCursor = isHumanTurn && phase === 'TILE_PLACEMENT' && !!previewTile
+  let cursorStyle: string
+  if (dragging) cursorStyle = 'grabbing'
+  else if (hoveredCell) cursorStyle = 'pointer'
+  else if (showTileCursor) cursorStyle = 'none'
+  else cursorStyle = 'grab'
+
   return (
     <div
       ref={containerRef}
@@ -89,13 +150,13 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
         flex: 1,
         overflow: 'hidden',
         position: 'relative',
-        cursor: dragging ? 'grabbing' : 'grab',
+        cursor: cursorStyle,
         background: '#0a0a14',
       }}
       onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
+      onMouseMove={handleMouseMoveBoard}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={handleMouseLeaveBoard}
       onWheel={handleWheel}
     >
       {/* Board layer */}
@@ -105,24 +166,37 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
         transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
       }}>
         {/* Placed tiles */}
-        {board.map((tile, i) => (
-          <div
-            key={`tile-${i}`}
-            style={{
-              position: 'absolute',
-              left: tile.col * TILE_SIZE,
-              top: tile.row * TILE_SIZE,
-              width: TILE_SIZE,
-              height: TILE_SIZE,
-            }}
-          >
-            <TileRenderer
-              name={tile.name}
-              rotation={tile.rotation}
-              size={TILE_SIZE}
-            />
-          </div>
-        ))}
+        {board.map((tile, i) => {
+          const isLastPlaced = tile.row === lastPlacedRow && tile.col === lastPlacedCol
+          return (
+            <div
+              key={`tile-${i}`}
+              style={{
+                position: 'absolute',
+                left: tile.col * TILE_SIZE,
+                top: tile.row * TILE_SIZE,
+                width: TILE_SIZE,
+                height: TILE_SIZE,
+              }}
+            >
+              <TileRenderer
+                name={tile.name}
+                rotation={tile.rotation}
+                size={TILE_SIZE}
+              />
+              {isLastPlaced && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  border: '2.5px solid rgba(255, 255, 255, 0.8)',
+                  borderRadius: 2,
+                  boxShadow: '0 0 8px rgba(255, 255, 255, 0.4), inset 0 0 8px rgba(255, 255, 255, 0.15)',
+                  pointerEvents: 'none',
+                }} />
+              )}
+            </div>
+          )
+        })}
 
         {/* Meeples on board */}
         {meeplesOnBoard.map((m, i) => {
@@ -139,41 +213,44 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
           )
         })}
 
-        {/* Valid tile placements */}
-        {tilePlacements.map((action, i) => (
-          <div
-            key={`placement-${i}`}
-            data-clickable
-            style={{
-              position: 'absolute',
-              left: action.col! * TILE_SIZE,
-              top: action.row! * TILE_SIZE,
-              width: TILE_SIZE,
-              height: TILE_SIZE,
-              cursor: 'pointer',
-              borderRadius: 3,
-              overflow: 'hidden',
-            }}
-            onClick={() => onAction(action.index)}
-          >
-            {/* Ghost preview */}
-            {previewTile && (
-              <TileRenderer name={previewTile.name} rotation={previewTile.rotation} size={TILE_SIZE} opacity={0.4} />
-            )}
-            {/* Highlight border */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              border: '2px dashed rgba(233, 69, 96, 0.7)',
-              borderRadius: 3,
-              background: 'rgba(233, 69, 96, 0.08)',
-              transition: 'background 0.15s',
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(233, 69, 96, 0.2)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(233, 69, 96, 0.08)')}
-            />
-          </div>
-        ))}
+        {/* Valid tile placement markers */}
+        {tilePlacements.map((action, i) => {
+          const isHovered = hoveredCell?.row === action.row && hoveredCell?.col === action.col
+          return (
+            <div
+              key={`placement-${i}`}
+              data-clickable
+              style={{
+                position: 'absolute',
+                left: action.col! * TILE_SIZE,
+                top: action.row! * TILE_SIZE,
+                width: TILE_SIZE,
+                height: TILE_SIZE,
+                cursor: 'pointer',
+                borderRadius: 3,
+                overflow: 'hidden',
+              }}
+              onClick={() => onAction(action.index)}
+            >
+              {/* Show full tile preview when hovered */}
+              {isHovered && previewTile && (
+                <TileRenderer name={previewTile.name} rotation={previewTile.rotation} size={TILE_SIZE} opacity={0.85} />
+              )}
+              {/* Subtle marker */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                border: isHovered
+                  ? '2px solid rgba(233, 69, 96, 0.9)'
+                  : '1.5px dashed rgba(233, 69, 96, 0.35)',
+                borderRadius: 3,
+                background: isHovered
+                  ? 'rgba(233, 69, 96, 0.1)'
+                  : 'transparent',
+              }} />
+            </div>
+          )
+        })}
 
         {/* Valid meeple placements */}
         {uniqueMeeplePlacements.map((action, i) => {
@@ -208,6 +285,23 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
             />
           )
         })}
+        {/* Floating tile at cursor */}
+        {previewTile && mousePos && !dragging && (
+          <div
+            style={{
+              position: 'absolute',
+              left: mousePos.x - TILE_SIZE / 2,
+              top: mousePos.y - TILE_SIZE / 2,
+              width: TILE_SIZE,
+              height: TILE_SIZE,
+              pointerEvents: 'none',
+              opacity: 0.7,
+              filter: 'drop-shadow(0 0 6px rgba(233, 69, 96, 0.5))',
+            }}
+          >
+            <TileRenderer name={previewTile.name} rotation={previewTile.rotation} size={TILE_SIZE} />
+          </div>
+        )}
       </div>
 
       {/* Zoom controls */}
