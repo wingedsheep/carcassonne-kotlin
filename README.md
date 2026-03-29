@@ -15,13 +15,13 @@ The engine is designed for AI and reinforcement learning workloads where million
 
 The immutable `GameState` design means branching during tree search requires no deep copy — just reference the previous state. This makes the engine particularly efficient for MCTS, AlphaZero-style self-play, and other search-based RL agents that require fast environment rollouts.
 
-### Good vs Evil: evaluation strategy comparison
+### Greedy vs Competitive: evaluation strategy comparison
 
-The evaluator supports a `differentialWeight` parameter that blends between maximizing own score (d=0.0, "Good") and maximizing score difference (d=1.0, "Evil"). Head-to-head results over 40 games per matchup:
+The evaluator supports a `differentialWeight` parameter that blends between maximizing own score (d=0.0, "Greedy") and maximizing score difference (d=1.0, "Competitive"). Head-to-head results over 40 games per matchup:
 
 ![Evaluator comparison](evaluator-comparison.png)
 
-Competitive agents that account for the opponent's score consistently beat the pure point-maximizer — both in win rate (up to 80%) and in raw score. Playing to *win* outperforms playing to *score*.
+Competitive agents that account for the opponent's score consistently beat the greedy point-maximizer — both in win rate (up to 80%) and in raw score. Playing to *win* outperforms playing to *score*.
 
 ## Architecture
 
