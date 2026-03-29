@@ -32,7 +32,7 @@ object RoadDetector {
             val currentTile = board.getRotated(coord) ?: continue
 
             tileCoords.add(coord)
-            if (currentTile.inn.isNotEmpty()) hasInn = true
+            if (current.side in currentTile.inn) hasInn = true
 
             // If the side is CENTER-connected (junction), don't cross to neighbor
             // A road ending at CENTER doesn't connect to a neighbor

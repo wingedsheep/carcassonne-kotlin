@@ -15,12 +15,21 @@ object StateUpdater {
     }
 
     private fun applyTilePlacement(state: GameState, action: PlaceTile): GameState {
-        val newBoard = state.board.copy()
+        val newState = state.copy()
+        val newBoard = newState.board
         newBoard.place(action.coordinate, PlacedTile(action.tileId, action.rotation))
-        return state.copy(
+        return GameState(
             board = newBoard,
+            deck = state.deck,
+            deckIndex = state.deckIndex,
+            playerCount = state.playerCount,
+            currentPlayer = state.currentPlayer,
             phase = GamePhase.MEEPLE_PLACEMENT,
+            scores = newState.scores,
+            meeples = newState.meeples,
+            placedMeeples = newState.placedMeeples,
             lastPlacedCoordinate = action.coordinate,
+            supplementaryRules = state.supplementaryRules,
         )
     }
 

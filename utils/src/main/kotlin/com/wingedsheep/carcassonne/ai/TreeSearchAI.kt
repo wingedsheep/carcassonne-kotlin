@@ -66,7 +66,7 @@ class TreeSearchAI(
         // Pre-score and sort for move ordering
         val scored = tilePlacements.map { action ->
             val afterTile = StateUpdater.applyAction(state, action)
-            action to quickEvalBestMeeple(afterTile)
+            action to quickEvalBestMeeple(afterTile, true)
         }.sortedByDescending { it.second }
 
         // Iterative deepening
@@ -317,25 +317,31 @@ class TreeSearchAI(
     ): List<Pair<PlaceTile, Double>> {
         val scored = placements.map { action ->
             val afterTile = StateUpdater.applyAction(state, action)
-            action to quickEvalBestMeeple(afterTile)
+            action to quickEvalBestMeeple(afterTile, maximizing)
         }
         return if (maximizing) scored.sortedByDescending { it.second }
         else scored.sortedBy { it.second }
     }
 
     /**
-     * Quick evaluation: try all meeple options, return best eval.
-     * Used for move ordering only - no deeper search.
+     * Quick evaluation: try all meeple options, return best eval from the
+     * current player's perspective. When it's the AI's turn (maximizing),
+     * pick the meeple that maximizes the eval; for opponents, pick the one
+     * that minimizes it.
      */
-    private fun quickEvalBestMeeple(meeplePhaseState: GameState): Double {
+    private fun quickEvalBestMeeple(meeplePhaseState: GameState, maximizing: Boolean): Double {
         val meepleActions = MoveGenerator.validMeeplePlacements(meeplePhaseState)
         if (meepleActions.isEmpty()) return evaluate(meeplePhaseState, player)
 
-        var best = Double.NEGATIVE_INFINITY
+        var best = if (maximizing) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY
         for (action in meepleActions) {
             val after = StateUpdater.applyAction(meeplePhaseState, action)
             val score = evaluate(after, player)
-            if (score > best) best = score
+            if (maximizing) {
+                if (score > best) best = score
+            } else {
+                if (score < best) best = score
+            }
         }
         return best
     }
