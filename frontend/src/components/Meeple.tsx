@@ -11,10 +11,13 @@ interface MeepleProps {
   type?: string
 }
 
-export function Meeple({ player, x, y, size = 18, title, type }: MeepleProps) {
+export function Meeple({ player, x, y, size = 24, title, type }: MeepleProps) {
   const colorName = MEEPLE_COLOR_NAMES[player % MEEPLE_COLOR_NAMES.length]
   const isAbbot = type === 'ABBOT'
+  const isFarmer = type === 'FARMER' || type === 'BIG_FARMER'
+  const isBig = type === 'BIG' || type === 'BIG_FARMER'
   const src = `/meeples/${colorName}_${isAbbot ? 'abbot' : 'meeple'}.png`
+  const displaySize = isBig ? size * 1.4 : size
 
   return (
     <img
@@ -26,12 +29,13 @@ export function Meeple({ player, x, y, size = 18, title, type }: MeepleProps) {
         position: 'absolute',
         left: x,
         top: y,
-        width: size,
-        height: size,
-        transform: 'translate(-50%, -50%)',
+        width: displaySize,
+        height: displaySize,
+        transform: `translate(-50%, -50%)${isFarmer ? ' rotate(90deg)' : ''}`,
         zIndex: 5,
         pointerEvents: 'none',
-        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+        filter:
+          'drop-shadow(0 0 1.5px white) drop-shadow(0 0 1.5px white) drop-shadow(0 1px 3px rgba(0,0,0,0.6))',
       }}
     />
   )

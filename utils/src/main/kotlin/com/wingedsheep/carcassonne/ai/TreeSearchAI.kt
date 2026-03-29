@@ -21,6 +21,12 @@ import com.wingedsheep.carcassonne.model.*
  *
  * A "ply" here = one full turn (tile placement + meeple decision).
  */
+data class SearchStats(
+    val action: Action,
+    val depthCompleted: Int,
+    val nodesSearched: Long,
+)
+
 class TreeSearchAI(
     private val player: Int,
     private val maxDepthTurns: Int = 6,
@@ -28,15 +34,20 @@ class TreeSearchAI(
 ) {
     private var deadline: Long = 0
     private var nodesSearched: Long = 0
+    private var depthCompleted: Int = 0
 
-    fun chooseAction(state: GameState): Action {
+    fun chooseAction(state: GameState): Action = search(state).action
+
+    fun search(state: GameState): SearchStats {
         deadline = System.currentTimeMillis() + timeLimitMs
         nodesSearched = 0
+        depthCompleted = 0
 
-        return when (state.phase) {
+        val action = when (state.phase) {
             GamePhase.TILE_PLACEMENT -> chooseTilePlacement(state)
             GamePhase.MEEPLE_PLACEMENT -> chooseMeeplePlacement(state)
         }
+        return SearchStats(action, depthCompleted, nodesSearched)
     }
 
     // -- Top-level move selection --
@@ -80,6 +91,7 @@ class TreeSearchAI(
             if (!isTimedOut()) {
                 // Only commit result from a fully completed depth iteration
                 bestAction = depthBest
+                depthCompleted = depth
             }
         }
 
@@ -118,6 +130,7 @@ class TreeSearchAI(
 
             if (!isTimedOut()) {
                 bestAction = depthBest
+                depthCompleted = depth
             }
         }
 

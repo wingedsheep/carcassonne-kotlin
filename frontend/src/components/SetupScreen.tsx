@@ -9,6 +9,9 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
   const [players, setPlayers] = useState(2)
   const [aiCount, setAiCount] = useState(1)
   const [aiDepth, setAiDepth] = useState(2)
+  const [withFarmers, setWithFarmers] = useState(false)
+  const [withAbbots, setWithAbbots] = useState(false)
+  const [withBigMeeples, setWithBigMeeples] = useState(false)
 
   const allAI = aiCount >= players
 
@@ -18,7 +21,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
       { length: Math.min(aiCount, players) },
       (_, i) => players - 1 - i
     )
-    onStart({ players, aiPlayers, aiDepth })
+    onStart({ players, aiPlayers, aiDepth, withFarmers, withAbbots, withBigMeeples })
   }
 
   return (
@@ -88,6 +91,17 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
           </SettingRow>
         )}
 
+        <div style={{ borderTop: '1px solid #1f2937', paddingTop: 12 }}>
+          <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
+            Rules
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Toggle label="Farmers" checked={withFarmers} onChange={setWithFarmers} />
+            <Toggle label="Abbots" checked={withAbbots} onChange={setWithAbbots} />
+            <Toggle label="Big meeples" checked={withBigMeeples} onChange={setWithBigMeeples} />
+          </div>
+        </div>
+
         <button
           onClick={handleStart}
           style={{
@@ -133,6 +147,43 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
     }}>
       {label}
       {children}
+    </label>
+  )
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      fontSize: 14,
+      color: '#e5e7eb',
+      cursor: 'pointer',
+    }}>
+      {label}
+      <div
+        onClick={() => onChange(!checked)}
+        style={{
+          width: 40,
+          height: 22,
+          borderRadius: 11,
+          background: checked ? '#e94560' : '#374151',
+          position: 'relative',
+          transition: 'background 0.15s',
+        }}
+      >
+        <div style={{
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: '#fff',
+          position: 'absolute',
+          top: 2,
+          left: checked ? 20 : 2,
+          transition: 'left 0.15s',
+        }} />
+      </div>
     </label>
   )
 }

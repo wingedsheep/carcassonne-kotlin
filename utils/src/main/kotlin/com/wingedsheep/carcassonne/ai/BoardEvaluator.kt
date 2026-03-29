@@ -24,9 +24,11 @@ object BoardEvaluator {
     private const val SCORE_WEIGHT = 1.0
     private const val OWN_POTENTIAL_WEIGHT = 0.7
     private const val OPPONENT_POTENTIAL_WEIGHT = 0.5
-    private const val MEEPLE_AVAILABILITY_WEIGHT = 0.4
+    private const val MEEPLE_AVAILABILITY_WEIGHT = 0.5
     private const val CITY_COMPLETION_BONUS = 0.3 // bonus per % of city that's close to finishing
     private const val MONASTERY_PROGRESS_WEIGHT = 0.8
+    /** Minimum expected return for a placed meeple to be "worth it". Below this, the meeple is wasted. */
+    private const val MEEPLE_OPPORTUNITY_COST = 3.0
 
     fun evaluate(state: GameState, player: Int): Double {
         var score = 0.0
@@ -38,13 +40,13 @@ object BoardEvaluator {
             .maxOfOrNull { state.scores[it] } ?: 0
         score += (myScore - bestOpponentScore) * SCORE_WEIGHT
 
-        // 2. Potential points from own placed meeples
-        score += meeplePotential(state, player) * OWN_POTENTIAL_WEIGHT
+        // 2. Potential points from own placed meeples, net of opportunity cost
+        score += netMeeplePotential(state, player) * OWN_POTENTIAL_WEIGHT
 
-        // 3. Subtract opponent potential
+        // 3. Subtract opponent potential (net)
         for (opp in 0 until state.playerCount) {
             if (opp == player) continue
-            score -= meeplePotential(state, opp) * OPPONENT_POTENTIAL_WEIGHT
+            score -= netMeeplePotential(state, opp) * OPPONENT_POTENTIAL_WEIGHT
         }
 
         // 4. Meeple availability bonus
@@ -55,42 +57,54 @@ object BoardEvaluator {
     }
 
     /**
-     * Estimate the expected points a player's placed meeples will earn.
-     * Accounts for structure size, completion progress, and position.
+     * Net meeple potential: sum of each placed meeple's expected value minus
+     * the opportunity cost of having it tied up. A meeple on a low-value
+     * structure yields a negative contribution, discouraging wasteful placement.
      */
-    private fun meeplePotential(state: GameState, player: Int): Double {
-        var potential = 0.0
+    private fun netMeeplePotential(state: GameState, player: Int): Double {
+        var total = 0.0
         val evaluated = mutableSetOf<PlacedMeeple>()
 
         for (meeple in state.placedMeeples[player]) {
             if (meeple in evaluated) continue
             evaluated.add(meeple)
 
-            when {
-                meeple.type.isFarmer -> {
-                    // Farmers are hard to evaluate mid-game; give small fixed value
-                    potential += 3.0
-                }
-                meeple.side != null -> {
-                    val tile = state.board.getRotated(meeple.coordinate) ?: continue
-                    val cws = CoordinateWithSide(meeple.coordinate, meeple.side)
-
-                    if (meeple.side in tile.citySides()) {
-                        potential += evaluateCity(state.board, cws, player, state)
-                    } else if (tile.terrainAt(meeple.side) == TerrainType.ROAD) {
-                        potential += evaluateRoad(state.board, cws)
-                    }
-                }
-                else -> {
-                    // Monastery
-                    val points = PointsCalculator.monasteryPoints(state.board, meeple.coordinate)
-                    // Scale by how close to completion (9 = complete)
-                    potential += points * MONASTERY_PROGRESS_WEIGHT + (if (points >= 7) 2.0 else 0.0)
-                }
-            }
+            val rawPotential = singleMeeplePotential(state, meeple, player)
+            // Subtract opportunity cost: a meeple earning less than the threshold
+            // is a net drag (it would be more valuable back in hand).
+            total += rawPotential - MEEPLE_OPPORTUNITY_COST
         }
 
-        return potential
+        return total
+    }
+
+    /**
+     * Estimate the expected points a single placed meeple will earn.
+     */
+    private fun singleMeeplePotential(state: GameState, meeple: PlacedMeeple, player: Int): Double {
+        return when {
+            meeple.type.isFarmer -> {
+                // Farmers are hard to evaluate mid-game; give small fixed value
+                3.0
+            }
+            meeple.side != null -> {
+                val tile = state.board.getRotated(meeple.coordinate) ?: return 0.0
+                val cws = CoordinateWithSide(meeple.coordinate, meeple.side)
+
+                if (meeple.side in tile.citySides()) {
+                    evaluateCity(state.board, cws, player, state)
+                } else if (tile.terrainAt(meeple.side) == TerrainType.ROAD) {
+                    evaluateRoad(state.board, cws)
+                } else {
+                    0.0
+                }
+            }
+            else -> {
+                // Monastery
+                val points = PointsCalculator.monasteryPoints(state.board, meeple.coordinate)
+                points * MONASTERY_PROGRESS_WEIGHT + (if (points >= 7) 2.0 else 0.0)
+            }
+        }
     }
 
     private fun evaluateCity(board: BoardMap, cws: CoordinateWithSide, player: Int, state: GameState): Double {

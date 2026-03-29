@@ -6,7 +6,7 @@ Kotlin reimplementation of the [Python Carcassonne engine](https://github.com/wi
 
 ## Performance
 
-The engine is fast — designed for AI and reinforcement learning workloads where millions of games need to be simulated. On a single thread it plays **~700+ complete games per second** (~1.4ms per game, ~142 actions per game), making it well-suited for MCTS and other search-based agents.
+The engine is fast — designed for AI and reinforcement learning workloads where millions of games need to be simulated. On a single thread it plays **~750+ complete games per second** (~1.3ms per game, ~142 actions per game), making it well-suited for MCTS and other search-based agents.
 
 ## Architecture
 
