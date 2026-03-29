@@ -14,9 +14,11 @@ object PointsCalculator {
             val meeples = findMeeplesInStructure(state, city.positions)
             val counts = meepleCounts(state, meeples)
             if (counts.all { it == 0 }) continue
-            val winner = findWinner(counts) ?: continue
             val points = cityPoints(city)
-            state.scores[winner] += points
+            val winners = findWinners(counts)
+            for (winner in winners) {
+                state.scores[winner] += points
+            }
             removeMeeples(state, meeples)
         }
 
@@ -27,9 +29,11 @@ object PointsCalculator {
             val meeples = findMeeplesInStructure(state, road.positions)
             val counts = meepleCounts(state, meeples)
             if (counts.all { it == 0 }) continue
-            val winner = findWinner(counts) ?: continue
             val points = roadPoints(road)
-            state.scores[winner] += points
+            val winners = findWinners(counts)
+            for (winner in winners) {
+                state.scores[winner] += points
+            }
             removeMeeples(state, meeples)
         }
 
@@ -68,9 +72,8 @@ object PointsCalculator {
                         val farm = FarmDetector.findFarm(state.board, cwfs)
                         val farmMeeples = findFarmMeeples(state, farm)
                         val counts = meepleCounts(state, farmMeeples)
-                        val winner = findWinner(counts)
-                        if (winner != null) {
-                            val points = farmPoints(state.board, farm)
+                        val points = farmPoints(state.board, farm)
+                        for (winner in findWinners(counts)) {
                             state.scores[winner] += points
                         }
                         for (list in farmMeeples) for (ms in list) processed.add(ms)
@@ -84,9 +87,9 @@ object PointsCalculator {
                             val city = CityDetector.findCity(state.board, cws)
                             val cityMeeples = findMeeplesInStructure(state, city.positions)
                             val counts = meepleCounts(state, cityMeeples)
-                            val winner = findWinner(counts)
-                            if (winner != null) {
-                                state.scores[winner] += cityPoints(city)
+                            val points = cityPoints(city)
+                            for (winner in findWinners(counts)) {
+                                state.scores[winner] += points
                             }
                             for (list in cityMeeples) for (ms in list) processed.add(ms)
                             removeMeeples(state, cityMeeples)
@@ -94,9 +97,9 @@ object PointsCalculator {
                             val road = RoadDetector.findRoad(state.board, cws)
                             val roadMeeples = findMeeplesInStructure(state, road.positions)
                             val counts = meepleCounts(state, roadMeeples)
-                            val winner = findWinner(counts)
-                            if (winner != null) {
-                                state.scores[winner] += roadPoints(road)
+                            val points = roadPoints(road)
+                            for (winner in findWinners(counts)) {
+                                state.scores[winner] += points
                             }
                             for (list in roadMeeples) for (ms in list) processed.add(ms)
                             removeMeeples(state, roadMeeples)
@@ -200,10 +203,14 @@ object PointsCalculator {
         }
     }
 
-    private fun findWinner(counts: IntArray): Int? {
+    private fun findWinners(counts: IntArray): List<Int> {
         val max = counts.max()
-        if (max == 0) return null
-        val winners = counts.indices.filter { counts[it] == max }
+        if (max == 0) return emptyList()
+        return counts.indices.filter { counts[it] == max }
+    }
+
+    private fun findWinner(counts: IntArray): Int? {
+        val winners = findWinners(counts)
         return if (winners.size == 1) winners[0] else null
     }
 
