@@ -26,8 +26,8 @@ const TILE_IMAGE_MAP: Record<string, TileImageInfo> = {
   city_narrow: { file: 'Base_Game_C2_Tile_G.png', rotationOffset: 0 },
   // H
   city_left_right: { file: 'Base_Game_C2_Tile_H.png', rotationOffset: 0 },
-  // H (garden) - image has cities L/R, Kotlin defines T/B
-  city_top_bottom_flowers: { file: 'Abbot-Base_Game_C2_Tile_H_Garden.png', rotationOffset: 1 },
+  // H (garden) - image has cities T/B, matching Kotlin definition
+  city_top_bottom_flowers: { file: 'Abbot-Base_Game_C2_Tile_H_Garden.png', rotationOffset: 0 },
   // I
   city_top_right: { file: 'Base_Game_C2_Tile_I.png', rotationOffset: 0 },
   // I (garden) - image has cities T/L, matching Kotlin definition
