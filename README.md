@@ -11,7 +11,7 @@ The engine is designed for AI and reinforcement learning workloads where million
 - **~750+ games/sec** on a single thread (~1.3ms per game)
 - **~17 avg branching factor** (valid actions per step), peaking at 60+
 - **~2400 moves considered** per game across ~142 steps
-- **5 turns lookahead** in 5s with alpha-beta search (~43k nodes explored)
+- **5 turns lookahead** in 5s with alpha-beta + PVS/LMR search (~29k nodes explored)
 
 The immutable `GameState` design means branching during tree search requires no deep copy — just reference the previous state. This makes the engine particularly efficient for MCTS, AlphaZero-style self-play, and other search-based RL agents that require fast environment rollouts.
 

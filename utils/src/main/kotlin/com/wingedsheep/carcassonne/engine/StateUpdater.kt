@@ -15,32 +15,36 @@ object StateUpdater {
     }
 
     private fun applyTilePlacement(state: GameState, action: PlaceTile): GameState {
-        val newState = state.copy()
-        newState.board.place(action.coordinate, PlacedTile(action.tileId, action.rotation))
-        return newState.copy(
+        val newBoard = state.board.copy()
+        newBoard.place(action.coordinate, PlacedTile(action.tileId, action.rotation))
+        return state.copy(
+            board = newBoard,
             phase = GamePhase.MEEPLE_PLACEMENT,
             lastPlacedCoordinate = action.coordinate,
         )
     }
 
     private fun applyMeeplePlacement(state: GameState, action: PlaceMeeple): GameState {
-        val newState = state.copy()
+        val scores = state.scores.copyOf()
+        val meeples = Array(state.playerCount) { state.meeples[it].copy() }
+        val placedMeeples = Array(state.playerCount) { state.placedMeeples[it].toMutableList() }
+        val player = state.currentPlayer
 
         if (action.remove) {
             // Remove abbot and score
-            val meeple = newState.placedMeeples[newState.currentPlayer].find {
+            val meeple = placedMeeples[player].find {
                 it.type == MeepleType.ABBOT && it.coordinate == action.coordinate
             }
             if (meeple != null) {
-                newState.placedMeeples[newState.currentPlayer].remove(meeple)
-                newState.meeples[newState.currentPlayer].returnMeeple(MeepleType.ABBOT)
-                val points = PointsCalculator.monasteryPoints(newState.board, action.coordinate)
-                newState.scores[newState.currentPlayer] += points
+                placedMeeples[player].remove(meeple)
+                meeples[player].returnMeeple(MeepleType.ABBOT)
+                val points = PointsCalculator.monasteryPoints(state.board, action.coordinate)
+                scores[player] += points
             }
         } else {
             // Place meeple
-            newState.meeples[newState.currentPlayer].take(action.meepleType)
-            newState.placedMeeples[newState.currentPlayer].add(
+            meeples[player].take(action.meepleType)
+            placedMeeples[player].add(
                 PlacedMeeple(
                     type = action.meepleType,
                     coordinate = action.coordinate,
@@ -50,17 +54,31 @@ object StateUpdater {
             )
         }
 
+        val newState = GameState(
+            board = state.board,
+            deck = state.deck,
+            deckIndex = state.deckIndex,
+            playerCount = state.playerCount,
+            currentPlayer = state.currentPlayer,
+            phase = state.phase,
+            scores = scores,
+            meeples = meeples,
+            placedMeeples = placedMeeples,
+            lastPlacedCoordinate = state.lastPlacedCoordinate,
+            supplementaryRules = state.supplementaryRules,
+        )
         return finishTurn(newState)
     }
 
     private fun applyPass(state: GameState): GameState {
+        val newState = state.copy()
         return when (state.phase) {
             GamePhase.TILE_PLACEMENT -> {
                 // No valid tile placement - skip to next tile/player
-                advanceToNextPlayer(state.copy())
+                advanceToNextPlayer(newState)
             }
             GamePhase.MEEPLE_PLACEMENT -> {
-                finishTurn(state.copy())
+                finishTurn(newState)
             }
         }
     }
@@ -79,11 +97,18 @@ object StateUpdater {
         val nextPlayer = (state.currentPlayer + 1) % state.playerCount
         val nextDeckIndex = state.deckIndex + 1
 
-        return state.copy(
+        return GameState(
+            board = state.board,
+            deck = state.deck,
+            deckIndex = nextDeckIndex,
+            playerCount = state.playerCount,
             currentPlayer = nextPlayer,
             phase = GamePhase.TILE_PLACEMENT,
-            deckIndex = nextDeckIndex,
+            scores = state.scores,
+            meeples = state.meeples,
+            placedMeeples = state.placedMeeples,
             lastPlacedCoordinate = null,
+            supplementaryRules = state.supplementaryRules,
         )
     }
 }

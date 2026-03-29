@@ -31,6 +31,7 @@ class TreeSearchAI(
     private val player: Int,
     private val maxDepthTurns: Int = 6,
     private val timeLimitMs: Long = 3000,
+    private val evaluate: (GameState, Int) -> Double = BoardEvaluator::evaluate,
 ) {
     companion object {
         /** Number of top-ordered moves that always get full-depth search (no LMR). */
@@ -109,7 +110,7 @@ class TreeSearchAI(
 
         val scored = meepleActions.map { action ->
             val after = StateUpdater.applyAction(state, action)
-            action to BoardEvaluator.evaluate(after, player)
+            action to evaluate(after, player)
         }.sortedByDescending { it.second }
 
         var bestAction: Action = scored[0].first
@@ -160,14 +161,14 @@ class TreeSearchAI(
                 alphabeta(state, depthRemaining - 1, !maximizing, alpha, beta)
             } else {
                 nodesSearched++
-                BoardEvaluator.evaluate(state, player)
+                evaluate(state, player)
             }
         }
 
         // Pre-score meeple actions for ordering
         val sorted = meepleActions.map { action ->
             val after = StateUpdater.applyAction(state, action)
-            action to BoardEvaluator.evaluate(after, player)
+            action to evaluate(after, player)
         }.let { list ->
             if (maximizing) list.sortedByDescending { it.second }
             else list.sortedBy { it.second }
@@ -185,7 +186,7 @@ class TreeSearchAI(
                 alphabeta(after, depthRemaining - 1, !maximizing, currentAlpha, currentBeta)
             } else {
                 nodesSearched++
-                BoardEvaluator.evaluate(after, player)
+                evaluate(after, player)
             }
 
             if (maximizing) {
@@ -223,13 +224,13 @@ class TreeSearchAI(
     ): Double {
         if (state.isFinished || depthRemaining <= 0 || isTimedOut()) {
             nodesSearched++
-            return BoardEvaluator.evaluate(state, player)
+            return evaluate(state, player)
         }
 
         val tileId = state.currentTileId
         if (tileId == null) {
             nodesSearched++
-            return BoardEvaluator.evaluate(state, player)
+            return evaluate(state, player)
         }
 
         val tilePlacements = MoveGenerator.validTilePlacements(state, tileId)
@@ -328,12 +329,12 @@ class TreeSearchAI(
      */
     private fun quickEvalBestMeeple(meeplePhaseState: GameState): Double {
         val meepleActions = MoveGenerator.validMeeplePlacements(meeplePhaseState)
-        if (meepleActions.isEmpty()) return BoardEvaluator.evaluate(meeplePhaseState, player)
+        if (meepleActions.isEmpty()) return evaluate(meeplePhaseState, player)
 
         var best = Double.NEGATIVE_INFINITY
         for (action in meepleActions) {
             val after = StateUpdater.applyAction(meeplePhaseState, action)
-            val score = BoardEvaluator.evaluate(after, player)
+            val score = evaluate(after, player)
             if (score > best) best = score
         }
         return best
