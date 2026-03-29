@@ -11,3 +11,8 @@ dependencies {
     implementation(libs.bundles.kotlinxEcosystem)
     testImplementation(kotlin("test"))
 }
+
+tasks.test {
+    // Forward env vars to the test JVM for benchmark gating
+    environment("RUN_SLOW_BENCHMARKS", System.getenv("RUN_SLOW_BENCHMARKS") ?: "")
+}

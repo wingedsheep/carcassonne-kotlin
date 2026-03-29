@@ -378,13 +378,13 @@ class BenchmarkTest {
      */
     @Test
     fun evaluatorComparisonBenchmark() {
-        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true") {
-            println("Skipped: set RUN_SLOW_BENCHMARKS=true to run")
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
             return
         }
         val weights = listOf(0.0, 0.25, 0.5, 0.75, 1.0)
-        val gamesPerMatchup = 50 // per side, so 100 total per pair
-        val timeBudget = 500L
+        val gamesPerMatchup = 20 // per side, so 40 total per pair
+        val timeBudget = 200L
 
         data class MatchResult(
             val w1: Double, val w2: Double,
