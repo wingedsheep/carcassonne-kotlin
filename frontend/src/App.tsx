@@ -6,6 +6,9 @@ import { GameBoard } from './components/GameBoard'
 import { ScoreBar } from './components/ScoreBar'
 import { Sidebar } from './components/Sidebar'
 import { GameOverOverlay } from './components/GameOverOverlay'
+import type { ScoringEvent } from './components/ScoreAnimation'
+
+let scoringEventId = 0
 
 export default function App() {
   const [game, setGame] = useState<GameResponse | null>(null)
@@ -13,11 +16,42 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [autoPlay, setAutoPlay] = useState(false)
   const autoPlayRef = useRef(false)
+  const [scoringEvents, setScoringEvents] = useState<ScoringEvent[]>([])
+  const prevScoresRef = useRef<number[] | null>(null)
+  const prevLastPlacedRef = useRef<{ row: number | null; col: number | null }>({ row: null, col: null })
+
+  const detectScoringEvents = useCallback((newGame: GameResponse) => {
+    const prevScores = prevScoresRef.current
+    // Use the new game's lastPlaced if available, otherwise fall back to what we saved from before the action
+    const row = newGame.lastPlacedRow ?? prevLastPlacedRef.current.row
+    const col = newGame.lastPlacedCol ?? prevLastPlacedRef.current.col
+    if (prevScores && row != null && col != null) {
+      const newEvents: ScoringEvent[] = []
+      for (let p = 0; p < newGame.scores.length; p++) {
+        const delta = newGame.scores[p] - (prevScores[p] ?? 0)
+        if (delta > 0) {
+          newEvents.push({ id: ++scoringEventId, player: p, points: delta, row, col })
+        }
+      }
+      if (newEvents.length > 0) {
+        setScoringEvents(prev => [...prev, ...newEvents])
+      }
+    }
+    prevScoresRef.current = [...newGame.scores]
+    prevLastPlacedRef.current = { row: newGame.lastPlacedRow, col: newGame.lastPlacedCol }
+  }, [])
+
+  const handleScoringEventDone = useCallback((id: number) => {
+    setScoringEvents(prev => prev.filter(e => e.id !== id))
+  }, [])
 
   const handleStart = async (options: CreateGameRequest) => {
     setLoading(true)
     try {
       const data = await createGame(options)
+      prevScoresRef.current = [...data.scores]
+      prevLastPlacedRef.current = { row: data.lastPlacedRow, col: data.lastPlacedCol }
+      setScoringEvents([])
       setGame(data)
       setSelectedRotation(0)
     } finally {
@@ -30,6 +64,7 @@ export default function App() {
     setLoading(true)
     try {
       const data = await applyAction(game.id, actionIndex)
+      detectScoringEvents(data)
       setGame(data)
       if (data.phase === 'TILE_PLACEMENT') {
         setSelectedRotation(0)
@@ -37,18 +72,19 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [game, loading])
+  }, [game, loading, detectScoringEvents])
 
   const handleStep = useCallback(async () => {
     if (!game || loading) return
     setLoading(true)
     try {
       const data = await stepAI(game.id)
+      detectScoringEvents(data)
       setGame(data)
     } finally {
       setLoading(false)
     }
-  }, [game, loading])
+  }, [game, loading, detectScoringEvents])
 
   const handleNewGame = () => {
     setAutoPlay(false)
@@ -79,6 +115,7 @@ export default function App() {
       try {
         setLoading(true)
         const data = await stepAI(game.id)
+        detectScoringEvents(data)
         setGame(data)
       } finally {
         setLoading(false)
@@ -135,6 +172,8 @@ export default function App() {
           game={game}
           selectedRotation={selectedRotation}
           onAction={handleAction}
+          scoringEvents={scoringEvents}
+          onScoringEventDone={handleScoringEventDone}
         />
         <Sidebar
           game={game}

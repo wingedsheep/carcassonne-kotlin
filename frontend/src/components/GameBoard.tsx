@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import type { GameResponse } from '../types/game'
 import { TileRenderer } from './TileRenderer'
 import { Meeple, getMeeplePosition } from './Meeple'
+import { ScoreAnimation } from './ScoreAnimation'
+import type { ScoringEvent } from './ScoreAnimation'
 
 const TILE_SIZE = 80
 
@@ -9,9 +11,11 @@ interface GameBoardProps {
   game: GameResponse
   selectedRotation: number
   onAction: (index: number) => void
+  scoringEvents: ScoringEvent[]
+  onScoringEventDone: (id: number) => void
 }
 
-export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) {
+export function GameBoard({ game, selectedRotation, onAction, scoringEvents, onScoringEventDone }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -302,6 +306,16 @@ export function GameBoard({ game, selectedRotation, onAction }: GameBoardProps) 
             <TileRenderer name={previewTile.name} rotation={previewTile.rotation} size={TILE_SIZE} />
           </div>
         )}
+
+        {/* Scoring animations */}
+        {scoringEvents.map(event => (
+          <ScoreAnimation
+            key={event.id}
+            event={event}
+            tileSize={TILE_SIZE}
+            onDone={onScoringEventDone}
+          />
+        ))}
       </div>
 
       {/* Zoom controls */}
