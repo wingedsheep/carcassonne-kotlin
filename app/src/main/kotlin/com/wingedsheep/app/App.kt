@@ -17,6 +17,7 @@ fun main() {
             json(Json {
                 prettyPrint = true
                 isLenient = true
+                encodeDefaults = true
             })
         }
         install(CORS) {
