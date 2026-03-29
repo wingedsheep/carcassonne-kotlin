@@ -383,8 +383,8 @@ class BenchmarkTest {
             return
         }
         val weights = listOf(0.0, 0.25, 0.5, 0.75, 1.0)
-        val gamesPerMatchup = 20 // per side, so 40 total per pair
-        val timeBudget = 200L
+        val gamesPerMatchup = 10 // per side, so 20 total per pair
+        val timeBudget = 100L
 
         data class MatchResult(
             val w1: Double, val w2: Double,
