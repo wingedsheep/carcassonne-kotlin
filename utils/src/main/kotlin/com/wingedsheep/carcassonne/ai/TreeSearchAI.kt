@@ -32,6 +32,10 @@ class TreeSearchAI(
     private val maxDepthTurns: Int = 6,
     private val timeLimitMs: Long = 3000,
 ) {
+    companion object {
+        /** Number of top-ordered moves that always get full-depth search (no LMR). */
+        private const val LMR_FULL_DEPTH_MOVES = 3
+    }
     private var deadline: Long = 0
     private var nodesSearched: Long = 0
     private var depthCompleted: Int = 0
@@ -199,8 +203,16 @@ class TreeSearchAI(
     }
 
     /**
-     * Alpha-beta search over full turns.
+     * Alpha-beta search over full turns with PVS and LMR.
      * State should be at TILE_PLACEMENT phase (start of a player's turn).
+     *
+     * - **PVS (Principal Variation Search)**: the first move (expected best from ordering)
+     *   is searched with a full window. Subsequent moves use a null/scout window; if
+     *   the scout search fails high, a full-window re-search is done.
+     * - **LMR (Late Move Reductions)**: moves ordered beyond the top few are searched
+     *   at reduced depth. If the reduced search returns a score that beats alpha,
+     *   a full-depth re-search is triggered. This lets promising branches consume more
+     *   of the time budget while weak branches are cheaply dismissed.
      */
     private fun alphabeta(
         state: GameState,
@@ -235,9 +247,11 @@ class TreeSearchAI(
         var currentAlpha = alpha
         var currentBeta = beta
         var bestScore = if (maximizing) Double.NEGATIVE_INFINITY else Double.POSITIVE_INFINITY
+        var isFirstMove = true
 
-        for ((action, quickScore) in sorted.take(branchLimit)) {
+        for ((moveIndex, pair) in sorted.take(branchLimit).withIndex()) {
             if (isTimedOut()) break
+            val (action, quickScore) = pair
 
             val afterTile = StateUpdater.applyAction(state, action)
 
@@ -248,7 +262,32 @@ class TreeSearchAI(
                 depthRemaining
             }
 
-            val score = searchMeepleThenDeeper(afterTile, effectiveDepth, maximizing, currentAlpha, currentBeta)
+            // LMR: reduce depth for late moves at sufficient depth
+            val reducedDepth = lmrDepth(effectiveDepth, moveIndex)
+
+            val score: Double
+            if (isFirstMove) {
+                // PVS: search first move with full window
+                score = searchMeepleThenDeeper(afterTile, effectiveDepth, maximizing, currentAlpha, currentBeta)
+                isFirstMove = false
+            } else {
+                // LMR + PVS scout: search with reduced depth and null window
+                val scoutBound = if (maximizing) currentAlpha + 0.01 else currentBeta - 0.01
+                var lmrScore = if (maximizing) {
+                    searchMeepleThenDeeper(afterTile, reducedDepth, maximizing, currentAlpha, scoutBound)
+                } else {
+                    searchMeepleThenDeeper(afterTile, reducedDepth, maximizing, scoutBound, currentBeta)
+                }
+
+                // Re-search at full depth + full window if scout/LMR found something interesting
+                if (maximizing && lmrScore > currentAlpha && (reducedDepth < effectiveDepth || lmrScore < currentBeta)) {
+                    lmrScore = searchMeepleThenDeeper(afterTile, effectiveDepth, maximizing, currentAlpha, currentBeta)
+                } else if (!maximizing && lmrScore < currentBeta && (reducedDepth < effectiveDepth || lmrScore > currentAlpha)) {
+                    lmrScore = searchMeepleThenDeeper(afterTile, effectiveDepth, maximizing, currentAlpha, currentBeta)
+                }
+
+                score = lmrScore
+            }
 
             if (maximizing) {
                 bestScore = maxOf(bestScore, score)
@@ -298,6 +337,21 @@ class TreeSearchAI(
             if (score > best) best = score
         }
         return best
+    }
+
+    // -- Late Move Reductions --
+
+    /**
+     * Compute reduced depth for late moves.
+     * Top 3 moves are always searched at full depth.
+     * Later moves get a reduction that grows with move index,
+     * but never reduces below 1 (so we always do at least a shallow search).
+     */
+    private fun lmrDepth(effectiveDepth: Int, moveIndex: Int): Int {
+        if (effectiveDepth <= 2 || moveIndex < LMR_FULL_DEPTH_MOVES) return effectiveDepth
+        // Logarithmic reduction: grows slowly with move index
+        val reduction = 1 + (moveIndex - LMR_FULL_DEPTH_MOVES) / 4
+        return maxOf(1, effectiveDepth - reduction)
     }
 
     // -- Dynamic branching --
