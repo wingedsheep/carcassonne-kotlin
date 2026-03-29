@@ -24,10 +24,9 @@ object BoardEvaluator {
     private const val OWN_POTENTIAL_WEIGHT = 0.7
     private const val OPPONENT_POTENTIAL_WEIGHT = 0.5
     private const val MEEPLE_AVAILABILITY_WEIGHT = 0.5
-    private const val CITY_COMPLETION_BONUS = 0.3 // bonus per % of city that's close to finishing
-    private const val MONASTERY_PROGRESS_WEIGHT = 0.8
+    private const val MONASTERY_PROGRESS_WEIGHT = 0.9
     /** Minimum expected return for a placed meeple to be "worth it". Below this, the meeple is wasted. */
-    private const val MEEPLE_OPPORTUNITY_COST = 3.0
+    private const val MEEPLE_OPPORTUNITY_COST = 2.0
 
     /**
      * Default evaluation: uses full score differential (differentialWeight = 1.0).
@@ -117,56 +116,73 @@ object BoardEvaluator {
                 }
             }
             else -> {
-                // Monastery
+                // Monastery: current points are guaranteed, plus potential for completion
                 val points = PointsCalculator.monasteryPoints(state.board, meeple.coordinate)
-                points * MONASTERY_PROGRESS_WEIGHT + (if (points >= 7) 2.0 else 0.0)
+                val remaining = 9 - points
+                // Each empty neighbor has a good chance of being filled
+                val expectedExtra = remaining * 0.5
+                points + expectedExtra * MONASTERY_PROGRESS_WEIGHT
             }
         }
     }
 
     private fun evaluateCity(board: BoardMap, cws: CoordinateWithSide, player: Int, state: GameState, cache: StructureCache): Double {
         val city = cache.getCity(cws)
-        val basePoints = PointsCalculator.cityPoints(city).toDouble()
+        if (city.finished) return PointsCalculator.cityPoints(city).toDouble()
 
-        if (city.finished) return basePoints
+        val tileCount = city.tileCoordinates.size
+        val shieldCount = city.shieldCount
+        // Guaranteed end-game value (unfinished scoring)
+        val guaranteed = (tileCount + shieldCount).toDouble()
+        // Value if the city completes
+        val potential = (tileCount * 2 + shieldCount * 2).toDouble()
 
         val openEdges = city.positions.count { pos ->
             val neighbor = pos.coordinate.neighbor(pos.side)
             !board.contains(neighbor)
         }
 
-        val completionFactor = when (openEdges) {
-            0 -> 2.0
-            1 -> 1.4
-            2 -> 0.9
-            3 -> 0.6
-            else -> 0.4
+        // Probability of completion based on how many edges still need filling
+        val completionProb = when (openEdges) {
+            0 -> 1.0
+            1 -> 0.75
+            2 -> 0.45
+            3 -> 0.25
+            else -> 0.12
         }
 
         val contested = isContested(state, city.positions, player)
         val contestPenalty = if (contested) 0.3 else 1.0
 
-        return basePoints * completionFactor * contestPenalty * CITY_COMPLETION_BONUS + basePoints * 0.5
+        // Expected value: guaranteed floor + probability-weighted upside
+        return (guaranteed + (potential - guaranteed) * completionProb) * contestPenalty
     }
 
     private fun evaluateRoad(board: BoardMap, cws: CoordinateWithSide, cache: StructureCache): Double {
         val road = cache.getRoad(cws)
-        val basePoints = PointsCalculator.roadPoints(road).toDouble()
-        if (road.finished) return basePoints
+        if (road.finished) return PointsCalculator.roadPoints(road).toDouble()
+
+        val tileCount = road.tileCoordinates.size
+        // Guaranteed end-game value (unfinished, no inn)
+        val guaranteed = if (road.hasInn) 0.0 else tileCount.toDouble()
+        // Value if the road completes
+        val potential = if (road.hasInn) (tileCount * 2).toDouble() else tileCount.toDouble()
 
         val openEdges = road.positions.count { pos ->
             if (pos.side !in Side.CARDINAL) false
             else !board.contains(pos.coordinate.neighbor(pos.side))
         }
 
-        val completionFactor = when (openEdges) {
-            0 -> 1.5
-            1 -> 1.0
-            2 -> 0.7
-            else -> 0.5
+        val completionProb = when (openEdges) {
+            0 -> 1.0
+            1 -> 0.8
+            2 -> 0.5
+            else -> 0.3
         }
 
-        return basePoints * completionFactor * 0.5 + basePoints * 0.3
+        // For roads without inn, guaranteed == potential, so this simplifies to tileCount * 1.0
+        // For roads with inn, it's pure upside weighted by completion probability
+        return guaranteed + (potential - guaranteed) * completionProb
     }
 
     private fun isContested(state: GameState, positions: Set<CoordinateWithSide>, player: Int): Boolean {
