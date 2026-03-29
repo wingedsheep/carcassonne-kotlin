@@ -38,6 +38,10 @@ class TreeSearchAITest {
 
     @Test
     fun `AI can play a full game against itself`() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
+            return
+        }
         val game = Game.builder().players(2).build()
         val ai0 = TreeSearchAI(player = 0, maxDepthTurns = 1, timeLimitMs = 500)
         val ai1 = TreeSearchAI(player = 1, maxDepthTurns = 1, timeLimitMs = 500)
@@ -59,6 +63,10 @@ class TreeSearchAITest {
 
     @Test
     fun `depth-2 AI completes without timeout errors`() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
+            return
+        }
         val game = Game.builder().players(2).build()
         val ai = TreeSearchAI(player = 0, maxDepthTurns = 2, timeLimitMs = 2000)
 

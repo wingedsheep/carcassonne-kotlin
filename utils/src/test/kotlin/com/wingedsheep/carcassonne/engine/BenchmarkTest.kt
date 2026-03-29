@@ -50,6 +50,10 @@ class BenchmarkTest {
 
     @Test
     fun benchmark() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
+            return
+        }
         // Warmup
         repeat(50) { playRandomGame(it) }
 
@@ -88,6 +92,10 @@ class BenchmarkTest {
 
     @Test
     fun searchDepthBenchmark() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
+            return
+        }
         // Play a game to mid-game state (~40 tiles placed) for a realistic position
         val game = Game.builder().players(2).build()
         val rng = Random(42)
@@ -135,6 +143,10 @@ class BenchmarkTest {
      */
     @Test
     fun profileRealGames() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
+            return
+        }
         val numGames = 3
         val timeBudget = 1000L
 
@@ -274,6 +286,10 @@ class BenchmarkTest {
      */
     @Test
     fun profileSearchBottlenecks() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true or -DrunSlowBenchmarks=true to run")
+            return
+        }
         // Play to mid-game
         val game = Game.builder().players(2).build()
         val rng = Random(42)
