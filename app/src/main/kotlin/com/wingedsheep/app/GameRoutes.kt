@@ -19,6 +19,7 @@ data class CreateGameRequest(
     val withBigMeeples: Boolean = false,
     val aiPlayers: List<Int> = emptyList(),
     val aiDepth: Int = 1,
+    val aiDepths: Map<Int, Int> = emptyMap(),
 )
 
 @Serializable
@@ -36,6 +37,8 @@ data class GameResponse(
     val playerMeeples: List<MeeplePoolResponse>,
     val aiPlayerIndices: List<Int> = emptyList(),
     val isAllAI: Boolean = false,
+    val lastPlacedRow: Int? = null,
+    val lastPlacedCol: Int? = null,
 )
 
 @Serializable
@@ -109,9 +112,10 @@ fun Route.gameRoutes() {
             val game = builder.build()
 
             val aiPlayers = request.aiPlayers.associateWith { playerIdx ->
+                val depth = request.aiDepths[playerIdx] ?: request.aiDepth
                 TreeSearchAI(
                     player = playerIdx,
-                    timeLimitMs = when (request.aiDepth) {
+                    timeLimitMs = when (depth) {
                         1 -> 500   // Easy: fast, shallow
                         2 -> 2000  // Normal: moderate thinking
                         else -> 5000  // Hard: deep search
@@ -196,6 +200,8 @@ private fun buildGameResponse(id: String, session: GameSession): GameResponse {
         },
         aiPlayerIndices = session.aiPlayers.keys.toList(),
         isAllAI = session.isAllAI,
+        lastPlacedRow = (state.lastPlacedCoordinate ?: session.lastPlacedCoordinate)?.row,
+        lastPlacedCol = (state.lastPlacedCoordinate ?: session.lastPlacedCoordinate)?.col,
     )
 }
 

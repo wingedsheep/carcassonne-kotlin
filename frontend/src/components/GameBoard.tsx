@@ -10,12 +10,13 @@ const TILE_SIZE = 80
 interface GameBoardProps {
   game: GameResponse
   selectedRotation: number
+  selectedMeepleType: string
   onAction: (index: number) => void
   scoringEvents: ScoringEvent[]
   onScoringEventDone: (id: number) => void
 }
 
-export function GameBoard({ game, selectedRotation, onAction, scoringEvents, onScoringEventDone }: GameBoardProps) {
+export function GameBoard({ game, selectedRotation, selectedMeepleType, onAction, scoringEvents, onScoringEventDone }: GameBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -87,8 +88,31 @@ export function GameBoard({ game, selectedRotation, onAction, scoringEvents, onS
     ? validActions.filter(a => a.type === 'place_meeple' && !a.remove)
     : []
 
-  // Deduplicate meeple placements by position (show only NORMAL type spots)
-  const uniqueMeeplePlacements = meeplePlacements.filter(a => a.meepleType === 'NORMAL')
+  // For each position, pick the action matching the selected meeple type.
+  // Selected type maps: NORMAL->NORMAL/FARMER, BIG->BIG/BIG_FARMER, ABBOT->ABBOT
+  const uniqueMeeplePlacements = (() => {
+    // Group actions by position key
+    const byPosition = new Map<string, typeof meeplePlacements>()
+    for (const a of meeplePlacements) {
+      const key = `${a.row},${a.col},${a.side ?? ''},${a.farmerSide ?? ''}`
+      if (!byPosition.has(key)) byPosition.set(key, [])
+      byPosition.get(key)!.push(a)
+    }
+    const result: typeof meeplePlacements = []
+    for (const actions of byPosition.values()) {
+      // Try to find the action matching the selected type at this position
+      const match = actions.find(a => {
+        if (selectedMeepleType === 'NORMAL') return a.meepleType === 'NORMAL' || a.meepleType === 'FARMER'
+        if (selectedMeepleType === 'BIG') return a.meepleType === 'BIG' || a.meepleType === 'BIG_FARMER'
+        if (selectedMeepleType === 'ABBOT') return a.meepleType === 'ABBOT'
+        return false
+      })
+      // Fall back to any available action at this position
+      if (match) result.push(match)
+      else if (actions.length > 0) result.push(actions[0])
+    }
+    return result
+  })()
 
   const previewTile = currentTileRotations?.[selectedRotation]
 

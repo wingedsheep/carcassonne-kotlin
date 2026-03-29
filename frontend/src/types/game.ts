@@ -72,6 +72,8 @@ export interface GameResponse {
   playerMeeples: MeeplePoolInfo[]
   aiPlayerIndices: number[]
   isAllAI: boolean
+  lastPlacedRow: number | null
+  lastPlacedCol: number | null
 }
 
 export interface CreateGameRequest {
@@ -81,4 +83,5 @@ export interface CreateGameRequest {
   withBigMeeples?: boolean
   aiPlayers?: number[]
   aiDepth?: number
+  aiDepths?: Record<number, number>
 }

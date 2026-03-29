@@ -1,4 +1,4 @@
-import type { GameResponse } from '../types/game'
+import type { GameResponse, MeeplePoolInfo } from '../types/game'
 import { TileRenderer } from './TileRenderer'
 import { PLAYER_COLORS } from './Meeple'
 
@@ -11,9 +11,12 @@ interface SidebarProps {
   autoPlay?: boolean
   onToggleAutoPlay?: () => void
   onConcede?: () => void
+  selectedMeepleType: string
+  onMeepleTypeChange: (type: string) => void
+  gameConfig: { withBigMeeples: boolean; withAbbots: boolean; withFarmers: boolean }
 }
 
-export function Sidebar({ game, selectedRotation, onRotationChange, onAction, onStep, autoPlay, onToggleAutoPlay, onConcede }: SidebarProps) {
+export function Sidebar({ game, selectedRotation, onRotationChange, onAction, onStep, autoPlay, onToggleAutoPlay, onConcede, selectedMeepleType, onMeepleTypeChange, gameConfig }: SidebarProps) {
   const { phase, currentPlayer, currentTileRotations, validActions, playerMeeples, aiPlayerIndices } = game
   const passAction = validActions.find(a => a.type === 'pass')
   const previewTile = currentTileRotations?.[selectedRotation]
@@ -46,11 +49,7 @@ export function Sidebar({ game, selectedRotation, onRotationChange, onAction, on
           </span>
         </div>
         {playerMeeples[currentPlayer] && (
-          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
-            Meeples: {playerMeeples[currentPlayer].normal} normal
-            {playerMeeples[currentPlayer].big > 0 && `, ${playerMeeples[currentPlayer].big} big`}
-            {playerMeeples[currentPlayer].abbot > 0 && `, ${playerMeeples[currentPlayer].abbot} abbot`}
-          </div>
+          <MeeplePool pool={playerMeeples[currentPlayer]} gameConfig={gameConfig} />
         )}
       </div>
 
@@ -85,13 +84,20 @@ export function Sidebar({ game, selectedRotation, onRotationChange, onAction, on
         </div>
       )}
 
-      {/* Meeple phase instructions */}
+      {/* Meeple type selector */}
       {phase === 'MEEPLE_PLACEMENT' && (
         <div>
           <SectionTitle>Place Meeple</SectionTitle>
-          <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, lineHeight: 1.5 }}>
-            Click a highlighted spot on the board to place a meeple, or pass.
+          <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 6, marginBottom: 10, lineHeight: 1.5 }}>
+            Select a meeple type, then click a spot on the board.
           </p>
+          <MeepleTypeSelector
+            pool={playerMeeples[currentPlayer]}
+            validActions={validActions}
+            selectedType={selectedMeepleType}
+            onSelect={onMeepleTypeChange}
+            gameConfig={gameConfig}
+          />
         </div>
       )}
 
@@ -175,6 +181,7 @@ export function Sidebar({ game, selectedRotation, onRotationChange, onAction, on
           ) : (
             <>
               <div><Kbd>Q</Kbd> / <Kbd>E</Kbd> &mdash; Rotate tile</div>
+              <div><Kbd>1</Kbd> <Kbd>2</Kbd> <Kbd>3</Kbd> &mdash; Meeple type</div>
               <div><Kbd>Space</Kbd> &mdash; Pass</div>
             </>
           )}
@@ -182,6 +189,115 @@ export function Sidebar({ game, selectedRotation, onRotationChange, onAction, on
           <div>Drag &mdash; Pan</div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function MeeplePool({ pool, gameConfig }: { pool: MeeplePoolInfo; gameConfig: { withBigMeeples: boolean; withAbbots: boolean } }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+      <MeeplePoolItem label="Normal" current={pool.normal} max={7} icon="/meeples/red_meeple.png" />
+      {gameConfig.withBigMeeples && (
+        <MeeplePoolItem label="Big" current={pool.big} max={1} icon="/meeples/red_meeple.png" big />
+      )}
+      {gameConfig.withAbbots && (
+        <MeeplePoolItem label="Abbot" current={pool.abbot} max={1} icon="/meeples/red_abbot.png" />
+      )}
+    </div>
+  )
+}
+
+function MeeplePoolItem({ label, current, max, icon, big }: { label: string; current: number; max: number; icon: string; big?: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <img
+        src={icon}
+        alt={label}
+        style={{
+          width: big ? 28 : 20,
+          height: big ? 28 : 20,
+          filter: 'drop-shadow(0 0 1px white) drop-shadow(0 0 1px white)',
+          opacity: current > 0 ? 1 : 0.3,
+        }}
+        draggable={false}
+      />
+      <span style={{
+        fontSize: 11,
+        color: current > 0 ? '#e5e7eb' : '#4b5563',
+        fontWeight: 600,
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {current}/{max}
+      </span>
+      <span style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function MeepleTypeSelector({ pool, validActions, selectedType, onSelect, gameConfig }: {
+  pool: MeeplePoolInfo
+  validActions: GameResponse['validActions']
+  selectedType: string
+  onSelect: (type: string) => void
+  gameConfig: { withBigMeeples: boolean; withAbbots: boolean; withFarmers: boolean }
+}) {
+  const meepleActions = validActions.filter(a => a.type === 'place_meeple' && !a.remove)
+  const hasNormal = meepleActions.some(a => a.meepleType === 'NORMAL' || a.meepleType === 'FARMER')
+  const hasBig = meepleActions.some(a => a.meepleType === 'BIG' || a.meepleType === 'BIG_FARMER')
+  const hasAbbot = meepleActions.some(a => a.meepleType === 'ABBOT')
+
+  const types: { key: string; label: string; available: boolean; enabled: boolean; icon: string; big?: boolean }[] = [
+    { key: 'NORMAL', label: `Normal (${pool.normal})`, available: hasNormal, enabled: pool.normal > 0, icon: '/meeples/red_meeple.png' },
+  ]
+  if (gameConfig.withBigMeeples) {
+    types.push({ key: 'BIG', label: `Big (${pool.big})`, available: hasBig, enabled: pool.big > 0, icon: '/meeples/red_meeple.png', big: true })
+  }
+  if (gameConfig.withAbbots) {
+    types.push({ key: 'ABBOT', label: `Abbot (${pool.abbot})`, available: hasAbbot, enabled: pool.abbot > 0, icon: '/meeples/red_abbot.png' })
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {types.map(t => {
+        const isSelected = selectedType === t.key
+        const canUse = t.available && t.enabled
+        return (
+          <button
+            key={t.key}
+            onClick={() => canUse && onSelect(t.key)}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              padding: '8px 4px',
+              background: isSelected ? 'rgba(233, 69, 96, 0.2)' : '#1f2937',
+              border: isSelected ? '2px solid #e94560' : '2px solid #374151',
+              borderRadius: 8,
+              cursor: canUse ? 'pointer' : 'not-allowed',
+              opacity: canUse ? 1 : 0.35,
+              transition: 'all 0.15s',
+            }}
+          >
+            <img
+              src={t.icon}
+              alt={t.key}
+              style={{
+                width: t.big ? 28 : 22,
+                height: t.big ? 28 : 22,
+                filter: 'drop-shadow(0 0 1px white) drop-shadow(0 0 1px white)',
+              }}
+              draggable={false}
+            />
+            <span style={{ fontSize: 10, color: '#e5e7eb', fontWeight: 500 }}>
+              {t.label}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }

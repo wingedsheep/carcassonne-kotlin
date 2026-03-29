@@ -467,4 +467,96 @@ class BenchmarkTest {
             }
         }
     }
+
+    /**
+     * Benchmark AI difficulty levels against each other.
+     * Uses scaled-down time budgets (100/400/1000ms) that preserve the ratio
+     * of the actual Easy/Medium/Hard settings (500/2000/5000ms).
+     *
+     * Disabled by default. Run with: RUN_SLOW_BENCHMARKS=true ./gradlew :utils:test --tests "*.BenchmarkTest.difficultyComparisonBenchmark"
+     */
+    @Test
+    fun difficultyComparisonBenchmark() {
+        if (System.getenv("RUN_SLOW_BENCHMARKS") != "true" && System.getProperty("runSlowBenchmarks") != "true") {
+            println("Skipped: set RUN_SLOW_BENCHMARKS=true to run")
+            return
+        }
+
+        data class Difficulty(val name: String, val timeLimitMs: Long)
+        val difficulties = listOf(
+            Difficulty("Easy", 500),
+            Difficulty("Medium", 2000),
+            Difficulty("Hard", 5000),
+        )
+
+        val gamesPerSide = 5 // 10 total per matchup
+
+        data class MatchResult(
+            val d1: Difficulty, val d2: Difficulty,
+            val wins1: Int, val wins2: Int, val draws: Int,
+            val avgScore1: Double, val avgScore2: Double,
+        )
+
+        val results = mutableListOf<MatchResult>()
+
+        for (i in difficulties.indices) {
+            for (j in i + 1 until difficulties.size) {
+                val d1 = difficulties[i]
+                val d2 = difficulties[j]
+                var wins1 = 0; var wins2 = 0; var draws = 0
+                var totalScore1 = 0L; var totalScore2 = 0L
+                var gamesPlayed = 0
+
+                for (side in 0..1) {
+                    val pTime0 = if (side == 0) d1.timeLimitMs else d2.timeLimitMs
+                    val pTime1 = if (side == 0) d2.timeLimitMs else d1.timeLimitMs
+
+                    for (g in 0 until gamesPerSide) {
+                        val game = Game.builder().players(2).build()
+                        val ai0 = TreeSearchAI(player = 0, timeLimitMs = pTime0)
+                        val ai1 = TreeSearchAI(player = 1, timeLimitMs = pTime1)
+
+                        while (!game.isFinished()) {
+                            val state = game.getState()
+                            val ai = if (state.currentPlayer == 0) ai0 else ai1
+                            game.apply(ai.chooseAction(state))
+                        }
+
+                        val scores = game.getFinalScores()
+                        val s1 = if (side == 0) scores[0] else scores[1]
+                        val s2 = if (side == 0) scores[1] else scores[0]
+                        totalScore1 += s1; totalScore2 += s2
+                        when {
+                            s1 > s2 -> wins1++
+                            s2 > s1 -> wins2++
+                            else -> draws++
+                        }
+                        gamesPlayed++
+                    }
+                }
+
+                val result = MatchResult(
+                    d1, d2, wins1, wins2, draws,
+                    totalScore1.toDouble() / gamesPlayed,
+                    totalScore2.toDouble() / gamesPlayed,
+                )
+                results.add(result)
+                println("${d1.name} vs ${d2.name}: ${wins1}-${wins2}-${draws} (avg %.1f vs %.1f)".format(
+                    result.avgScore1, result.avgScore2))
+            }
+        }
+
+        println("\n=== Difficulty Comparison (${gamesPerSide * 2} games per matchup) ===")
+        for (r in results) {
+            println("%-6s vs %-6s: %2d-%2d-%d  (avg %.1f vs %.1f)".format(
+                r.d1.name, r.d2.name, r.wins1, r.wins2, r.draws, r.avgScore1, r.avgScore2))
+        }
+
+        File("/tmp/carcassonne-difficulty-comparison.csv").printWriter().use { out ->
+            out.println("difficulty_a,difficulty_b,time_a_ms,time_b_ms,wins_a,wins_b,draws,avg_score_a,avg_score_b")
+            for (r in results) {
+                out.println("${r.d1.name},${r.d2.name},${r.d1.timeLimitMs},${r.d2.timeLimitMs},${r.wins1},${r.wins2},${r.draws},${"%.1f".format(r.avgScore1)},${"%.1f".format(r.avgScore2)}")
+            }
+        }
+    }
 }

@@ -8,7 +8,7 @@ interface SetupScreenProps {
 export function SetupScreen({ onStart }: SetupScreenProps) {
   const [players, setPlayers] = useState(2)
   const [aiCount, setAiCount] = useState(1)
-  const [aiDepth, setAiDepth] = useState(2)
+  const [aiDepths, setAiDepths] = useState<number[]>([2, 2, 2, 2, 2])
   const [withFarmers, setWithFarmers] = useState(false)
   const [withAbbots, setWithAbbots] = useState(false)
   const [withBigMeeples, setWithBigMeeples] = useState(false)
@@ -21,7 +21,12 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
       { length: Math.min(aiCount, players) },
       (_, i) => players - 1 - i
     )
-    onStart({ players, aiPlayers, aiDepth, withFarmers, withAbbots, withBigMeeples })
+    // Build per-player depth map
+    const depthMap: Record<number, number> = {}
+    aiPlayers.forEach((playerIdx, i) => {
+      depthMap[playerIdx] = aiDepths[i]
+    })
+    onStart({ players, aiPlayers, aiDepths: depthMap, withFarmers, withAbbots, withBigMeeples })
   }
 
   return (
@@ -33,6 +38,9 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
       height: '100vh',
       gap: 32,
       background: '#0a0a14',
+      backgroundImage: 'url(/background.jpeg)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
     }}>
       <div style={{ textAlign: 'center' }}>
         <h1 style={{
@@ -44,7 +52,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         }}>
           Carcassonne
         </h1>
-        <p style={{ color: '#6b7280', fontSize: 14, marginTop: 8 }}>
+        <p style={{ color: '#ffffff', fontSize: 14, marginTop: 8, textShadow: '0 0 8px rgba(0,0,0,1), 0 0 16px rgba(0,0,0,0.8)' }}>
           A tile-placement board game
         </p>
       </div>
@@ -82,13 +90,21 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         </SettingRow>
 
         {aiCount > 0 && (
-          <SettingRow label="AI strength">
-            <select style={selectStyle} value={aiDepth} onChange={e => setAiDepth(Number(e.target.value))}>
-              <option value={1}>Easy (0.5s)</option>
-              <option value={2}>Normal (2s)</option>
-              <option value={3}>Hard (5s)</option>
-            </select>
-          </SettingRow>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {Array.from({ length: aiCount }, (_, i) => (
+              <SettingRow key={i} label={aiCount === 1 ? 'AI strength' : `AI ${i + 1} strength`}>
+                <select style={selectStyle} value={aiDepths[i]} onChange={e => {
+                  const next = [...aiDepths]
+                  next[i] = Number(e.target.value)
+                  setAiDepths(next)
+                }}>
+                  <option value={1}>Easy</option>
+                  <option value={2}>Normal</option>
+                  <option value={3}>Hard</option>
+                </select>
+              </SettingRow>
+            ))}
+          </div>
         )}
 
         <div style={{ borderTop: '1px solid #1f2937', paddingTop: 12 }}>

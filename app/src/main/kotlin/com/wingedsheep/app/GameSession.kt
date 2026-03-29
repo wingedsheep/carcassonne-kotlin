@@ -1,6 +1,7 @@
 package com.wingedsheep.app
 
 import com.wingedsheep.carcassonne.ai.TreeSearchAI
+import com.wingedsheep.carcassonne.model.Coordinate
 import com.wingedsheep.carcassonne.engine.Game
 import com.wingedsheep.carcassonne.engine.GameState
 import java.util.concurrent.ConcurrentHashMap
@@ -11,8 +12,14 @@ class GameSession(
     val aiPlayers: Map<Int, TreeSearchAI> = emptyMap(),
     val history: MutableList<GameState> = mutableListOf()
 ) {
+    /** Coordinate of the most recently placed tile (persists across phases). */
+    var lastPlacedCoordinate: Coordinate? = null
+        private set
+
     fun pushState() {
         history.add(game.getState().copy())
+        // Capture the last placed coordinate whenever one is available
+        game.getState().lastPlacedCoordinate?.let { lastPlacedCoordinate = it }
     }
 
     /** If the current player is AI, auto-play until it's a human's turn or the game ends. */

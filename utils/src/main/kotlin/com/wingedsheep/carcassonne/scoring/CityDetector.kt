@@ -14,7 +14,6 @@ object CityDetector {
         val explored = mutableSetOf<CoordinateWithSide>()
         val queue = ArrayDeque<CoordinateWithSide>()
         val tileCoords = mutableSetOf<Coordinate>()
-        var shieldCount = 0
         var hasCathedral = false
         var finished = true
 
@@ -34,7 +33,6 @@ object CityDetector {
             val currentTile = board.getRotated(coord) ?: continue
 
             tileCoords.add(coord)
-            if (currentTile.shield) shieldCount++
             if (currentTile.cathedral) hasCathedral = true
 
             // Look at the opposite side on the neighbor

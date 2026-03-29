@@ -73,7 +73,7 @@ object PointsCalculator {
                             val points = farmPoints(state.board, farm)
                             state.scores[winner] += points
                         }
-                        for (ms in farmMeeples.flatMap { it }) processed.add(ms)
+                        for (list in farmMeeples) for (ms in list) processed.add(ms)
                         removeMeeples(state, farmMeeples)
                     }
                     meeple.side != null -> {
@@ -88,7 +88,7 @@ object PointsCalculator {
                             if (winner != null) {
                                 state.scores[winner] += cityPoints(city)
                             }
-                            for (ms in cityMeeples.flatMap { it }) processed.add(ms)
+                            for (list in cityMeeples) for (ms in list) processed.add(ms)
                             removeMeeples(state, cityMeeples)
                         } else if (tile.terrainAt(meeple.side) == TerrainType.ROAD) {
                             val road = RoadDetector.findRoad(state.board, cws)
@@ -98,7 +98,7 @@ object PointsCalculator {
                             if (winner != null) {
                                 state.scores[winner] += roadPoints(road)
                             }
-                            for (ms in roadMeeples.flatMap { it }) processed.add(ms)
+                            for (list in roadMeeples) for (ms in list) processed.add(ms)
                             removeMeeples(state, roadMeeples)
                         }
                     }

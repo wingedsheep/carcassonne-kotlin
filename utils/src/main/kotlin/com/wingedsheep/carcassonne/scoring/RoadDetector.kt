@@ -100,7 +100,8 @@ object RoadDetector {
         }
         // Remove CENTER - it's not a real side to traverse to neighbors
         // but keep cardinal sides that connect through a road
-        return result.filter { it in Side.CARDINAL || it == startSide }.toSet()
+        result.retainAll { it in Side.CARDINAL || it == startSide }
+        return result
     }
 
     private fun emptyRoad() = Road(emptySet(), false, emptySet())

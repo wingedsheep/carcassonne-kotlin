@@ -12,6 +12,7 @@ object FarmDetector {
         val explored = mutableSetOf<CoordinateWithFarmerSide>()
         val queue = ArrayDeque<CoordinateWithFarmerSide>()
         val farmerConnsWithCoord = mutableListOf<Pair<Coordinate, FarmerConnection>>()
+        val seenFarmerConns = mutableSetOf<Pair<Coordinate, FarmerConnection>>()
 
         // Find the farmer connection containing the start farmer side
         val startFarmConn = tile.farms.find { farm ->
@@ -24,7 +25,9 @@ object FarmDetector {
             queue.add(cwfs)
             connections.add(cwfs)
         }
-        farmerConnsWithCoord.add(start.coordinate to startFarmConn)
+        val startPair = start.coordinate to startFarmConn
+        farmerConnsWithCoord.add(startPair)
+        seenFarmerConns.add(startPair)
 
         while (queue.isNotEmpty()) {
             val current = queue.removeFirst()
@@ -47,11 +50,9 @@ object FarmDetector {
             } ?: continue
 
             // Add all farmer sides of that zone
-            val isNew = farmerConnsWithCoord.none {
-                it.first == neighborCoord && it.second == neighborFarmConn
-            }
-            if (isNew) {
-                farmerConnsWithCoord.add(neighborCoord to neighborFarmConn)
+            val pair = neighborCoord to neighborFarmConn
+            if (seenFarmerConns.add(pair)) {
+                farmerConnsWithCoord.add(pair)
             }
 
             for (fs in neighborFarmConn.tileConnections) {

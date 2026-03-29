@@ -19,6 +19,8 @@ export default function App() {
   const [scoringEvents, setScoringEvents] = useState<ScoringEvent[]>([])
   const prevScoresRef = useRef<number[] | null>(null)
   const prevLastPlacedRef = useRef<{ row: number | null; col: number | null }>({ row: null, col: null })
+  const [selectedMeepleType, setSelectedMeepleType] = useState<string>('NORMAL')
+  const [gameConfig, setGameConfig] = useState<{ withBigMeeples: boolean; withAbbots: boolean; withFarmers: boolean }>({ withBigMeeples: false, withAbbots: false, withFarmers: false })
 
   const detectScoringEvents = useCallback((newGame: GameResponse) => {
     const prevScores = prevScoresRef.current
@@ -54,6 +56,8 @@ export default function App() {
       setScoringEvents([])
       setGame(data)
       setSelectedRotation(0)
+      setSelectedMeepleType('NORMAL')
+      setGameConfig({ withBigMeeples: !!options.withBigMeeples, withAbbots: !!options.withAbbots, withFarmers: !!options.withFarmers })
     } finally {
       setLoading(false)
     }
@@ -68,6 +72,7 @@ export default function App() {
       setGame(data)
       if (data.phase === 'TILE_PLACEMENT') {
         setSelectedRotation(0)
+        setSelectedMeepleType('NORMAL')
       }
     } finally {
       setLoading(false)
@@ -145,6 +150,12 @@ export default function App() {
         }
       } else if (e.key === 'a' || e.key === 'A') {
         if (game.isAllAI) toggleAutoPlay()
+      } else if (e.key === '1') {
+        setSelectedMeepleType('NORMAL')
+      } else if (e.key === '2') {
+        setSelectedMeepleType('BIG')
+      } else if (e.key === '3') {
+        setSelectedMeepleType('ABBOT')
       }
     }
 
@@ -171,6 +182,7 @@ export default function App() {
         <GameBoard
           game={game}
           selectedRotation={selectedRotation}
+          selectedMeepleType={selectedMeepleType}
           onAction={handleAction}
           scoringEvents={scoringEvents}
           onScoringEventDone={handleScoringEventDone}
@@ -184,6 +196,9 @@ export default function App() {
           autoPlay={autoPlay}
           onToggleAutoPlay={toggleAutoPlay}
           onConcede={handleNewGame}
+          selectedMeepleType={selectedMeepleType}
+          onMeepleTypeChange={setSelectedMeepleType}
+          gameConfig={gameConfig}
         />
       </div>
 
