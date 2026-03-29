@@ -41,10 +41,40 @@ export function Meeple({ player, x, y, size = 24, title, type }: MeepleProps) {
   )
 }
 
+// Garden positions in base image coordinates (fractions of tile size).
+// These override the default center position for abbot/garden placements.
+const GARDEN_POSITIONS: Record<string, { x: number; y: number }> = {
+  city_top_flowers:                        { x: 0.32, y: 0.65 },
+  city_top_bottom_flowers:                 { x: 0.69, y: 0.48 },
+  city_top_left_flowers:                   { x: 0.65, y: 0.65 },
+  city_diagonal_top_right_shield_flowers:  { x: 0.31, y: 0.69 },
+  city_diagonal_top_right_flowers:         { x: 0.31, y: 0.69 },
+  city_bottom_grass_flowers:               { x: 0.44, y: 0.65 },
+  straight_road_flowers:                   { x: 0.27, y: 0.60 },
+  bent_road_flowers:                       { x: 0.25, y: 0.29 },
+}
+
+/**
+ * Rotate a point in base image coords by R * 90° CW around the tile center,
+ * matching CSS rotate() behavior.
+ */
+function rotatePoint(x: number, y: number, rotation: number, size: number): { x: number; y: number } {
+  const r = ((rotation % 4) + 4) % 4
+  switch (r) {
+    case 0: return { x, y }
+    case 1: return { x: size - y, y: x }
+    case 2: return { x: size - x, y: size - y }
+    case 3: return { x: y, y: size - x }
+    default: return { x, y }
+  }
+}
+
 export function getMeeplePosition(
   side: string | null,
   farmerSide: string | null,
-  tileSize: number
+  tileSize: number,
+  tileName?: string,
+  tileRotation?: number,
 ): { x: number; y: number } {
   const mid = tileSize / 2
   const edge = tileSize * 0.18
@@ -63,7 +93,21 @@ export function getMeeplePosition(
     return positions[farmerSide] ?? { x: mid, y: mid }
   }
 
-  if (!side) return { x: mid, y: mid } // monastery center
+  // Garden/monastery: no side
+  if (!side) {
+    if (tileName && tileRotation != null) {
+      const gardenFrac = GARDEN_POSITIONS[tileName]
+      if (gardenFrac) {
+        return rotatePoint(
+          gardenFrac.x * tileSize,
+          gardenFrac.y * tileSize,
+          tileRotation,
+          tileSize,
+        )
+      }
+    }
+    return { x: mid, y: mid }
+  }
 
   const positions: Record<string, { x: number; y: number }> = {
     TOP: { x: mid, y: edge },

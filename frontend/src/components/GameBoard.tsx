@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import type { GameResponse } from '../types/game'
+import type { GameResponse, BoardTile } from '../types/game'
 import { TileRenderer } from './TileRenderer'
 import { Meeple, getMeeplePosition } from './Meeple'
+import { getTileRotationOffset } from './tileImages'
 import { ScoreAnimation } from './ScoreAnimation'
 import type { ScoringEvent } from './ScoreAnimation'
 
@@ -28,6 +29,10 @@ export function GameBoard({ game, selectedRotation, selectedMeepleType, onAction
 
   const { board, phase, validActions, currentTileRotations, meeplesOnBoard, currentPlayer, aiPlayerIndices, lastPlacedRow, lastPlacedCol } = game
   const isHumanTurn = !aiPlayerIndices.includes(currentPlayer)
+
+  // Board tile lookup by "row,col"
+  const boardLookup = new Map<string, BoardTile>()
+  for (const t of board) boardLookup.set(`${t.row},${t.col}`, t)
 
   // Center on initial render
   useEffect(() => {
@@ -228,7 +233,9 @@ export function GameBoard({ game, selectedRotation, selectedMeepleType, onAction
 
         {/* Meeples on board */}
         {meeplesOnBoard.map((m, i) => {
-          const pos = getMeeplePosition(m.side, m.farmerSide, TILE_SIZE)
+          const bt = boardLookup.get(`${m.row},${m.col}`)
+          const totalRot = bt ? bt.rotation + getTileRotationOffset(bt.name) : 0
+          const pos = getMeeplePosition(m.side, m.farmerSide, TILE_SIZE, bt?.name, totalRot)
           return (
             <Meeple
               key={`meeple-${i}`}
@@ -282,7 +289,9 @@ export function GameBoard({ game, selectedRotation, selectedMeepleType, onAction
 
         {/* Valid meeple placements */}
         {uniqueMeeplePlacements.map((action, i) => {
-          const pos = getMeeplePosition(action.side ?? null, action.farmerSide ?? null, TILE_SIZE)
+          const bt2 = boardLookup.get(`${action.row},${action.col}`)
+          const totalRot2 = bt2 ? bt2.rotation + getTileRotationOffset(bt2.name) : 0
+          const pos = getMeeplePosition(action.side ?? null, action.farmerSide ?? null, TILE_SIZE, bt2?.name, totalRot2)
           return (
             <div
               key={`mspot-${i}`}
