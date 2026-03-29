@@ -30,8 +30,8 @@ const TILE_IMAGE_MAP: Record<string, TileImageInfo> = {
   city_top_bottom_flowers: { file: 'Abbot-Base_Game_C2_Tile_H_Garden.png', rotationOffset: 1 },
   // I
   city_top_right: { file: 'Base_Game_C2_Tile_I.png', rotationOffset: 0 },
-  // I (garden) - image has cities T/R, Kotlin defines T/L
-  city_top_left_flowers: { file: 'Abbot-Base_Game_C2_Tile_I_Garden.png', rotationOffset: 3 },
+  // I (garden) - image has cities T/L, matching Kotlin definition
+  city_top_left_flowers: { file: 'Abbot-Base_Game_C2_Tile_I_Garden.png', rotationOffset: 0 },
   // J
   city_top_road_bend_right: { file: 'Base_Game_C2_Tile_J.png', rotationOffset: 0 },
   // K
